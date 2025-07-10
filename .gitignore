@@ -1,0 +1,11 @@
+.vs/
+.vsconfig
+
+/Intermediate/
+/Binaries/
+/DerivedDataCache/
+*.pdb
+*.obj
+*.pch
+*.dll
+*.exe
