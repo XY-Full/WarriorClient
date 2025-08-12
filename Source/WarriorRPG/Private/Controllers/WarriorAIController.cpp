@@ -5,16 +5,13 @@
 #include "Navigation/CrowdFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "BehaviorTree/BlackboardComponent.h"
 
 #include "WarriorDebugHelper.h"
 
 AWarriorAIController::AWarriorAIController(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>("PathFollowingComponent"))
 {
-	if (Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
-	{
-		Debug::Print("CrowdFollowingComponent Valid", FColor::Green);
-	}
 
 	AISenseConfig_Sight = CreateDefaultSubobject<UAISenseConfig_Sight>("EnemySenseConfig_Sight");
 	AISenseConfig_Sight->DetectionByAffiliation.bDetectEnemies = true;
@@ -38,7 +35,7 @@ ETeamAttitude::Type AWarriorAIController::GetTeamAttitudeTowards(const AActor& O
 
 	const IGenericTeamAgentInterface* OtherTeamAgent = Cast<const IGenericTeamAgentInterface>(PawnToCheck->GetController());
 
-	if (OtherTeamAgent && OtherTeamAgent->GetGenericTeamId() != GetGenericTeamId())
+	if (OtherTeamAgent && OtherTeamAgent->GetGenericTeamId() < GetGenericTeamId())
 	{
 		return ETeamAttitude::Hostile;
 	}
@@ -46,10 +43,40 @@ ETeamAttitude::Type AWarriorAIController::GetTeamAttitudeTowards(const AActor& O
 	return ETeamAttitude::Friendly;
 }
 
+void AWarriorAIController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UCrowdFollowingComponent* FollowingComponent = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
+	{
+		FollowingComponent->SetCrowdSimulationState(ECrowdSimulationState::Enabled);
+
+		switch (DetourCrowdAvoidanceQuality)
+		{
+		case 1: FollowingComponent->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::Low); break;
+		case 2: FollowingComponent->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::Medium); break;
+		case 3: FollowingComponent->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::Good); break;
+		case 4: FollowingComponent->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High); break;
+		default:
+			break;
+		}
+
+		FollowingComponent->SetAvoidanceGroup(1);
+		FollowingComponent->SetGroupsToAvoid(1);
+		FollowingComponent->SetCrowdCollisionQueryRange(CollisionQueryRange);
+	}
+}
+
 void AWarriorAIController::OnEnemyPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
-	if (Stimulus.WasSuccessfullySensed() && Actor)
+	if (UBlackboardComponent* BlackboardComponent = GetBlackboardComponent())
 	{
-		Debug::Print(Actor->GetActorNameOrLabel() + TEXT(" was sensed"), FColor::Green);
+		if (!BlackboardComponent->GetValueAsObject(FName("TargetActor")))
+		{
+			if (Stimulus.WasSuccessfullySensed() && Actor)
+			{
+				BlackboardComponent->SetValueAsObject(FName("TargetActor"), Actor);
+			}
+		}
 	}
 }

@@ -2,7 +2,7 @@
 
 
 #include "AbilitySystem/WarriorAbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/WarriorGameplayAbility.h"
+#include "AbilitySystem/Abilities/WarriorHeroGameplayAbility.h"
 
 void UWarriorAbilitySystemComponent::OnAbilityInputPressed(const FGameplayTag& InInputTag)
 {
@@ -61,4 +61,27 @@ void UWarriorAbilitySystemComponent::RemoveGrantedHeroWeaponAbilities(UPARAM(ref
 	}
 
 	InSpecHandlesToRemove.Empty();
+}
+
+bool UWarriorAbilitySystemComponent::TryActivateAbilityWithTag(const FGameplayTag AbilityTagToActivate)
+{
+	check(AbilityTagToActivate.IsValid());
+
+	TArray<FGameplayAbilitySpec*> AbilitySpecResult;
+	GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTagToActivate.GetSingleTagContainer(), AbilitySpecResult);
+
+	if (!AbilitySpecResult.IsEmpty())
+	{
+		int RandomAbilityIndex = FMath::RandRange(0, AbilitySpecResult.Num() - 1);
+		FGameplayAbilitySpec* SpecToActivate = AbilitySpecResult[RandomAbilityIndex];
+
+		check(SpecToActivate);
+
+		if (!SpecToActivate->IsActive())
+		{
+			return TryActivateAbility(SpecToActivate->Handle);
+		}
+	}
+
+	return false;
 }
